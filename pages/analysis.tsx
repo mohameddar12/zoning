@@ -16,6 +16,9 @@ import {
   Badge,
   Flex,
   useToast,
+  Stack,
+  Divider,
+  Button,
 } from '@chakra-ui/react';
 import Head from 'next/head';
 import Layout from '../components/Layout';
@@ -23,7 +26,9 @@ import MapView from '../components/MapView';
 import ZoningAnalysis from '../components/ZoningAnalysis';
 import EnvironmentalInsights from '../components/EnvironmentalInsights';
 import FeasibilityEstimation from '../components/FeasibilityEstimation';
-import { searchSite, getZoningInfo, getClimateData, getSolarAnalysis, getFloodRiskData } from '../services/api';
+import { searchSite, getZoningInfo, getClimateData, getSolarAnalysis, getFloodRiskData, getSiteById } from '../services/api';
+import { FaMapMarkerAlt, FaBuilding, FaLeaf, FaChartLine, FaInfoCircle, FaDownload, FaCheckCircle, FaLightbulb } from 'react-icons/fa';
+import { Icon } from '@chakra-ui/react';
 
 export default function Analysis() {
   const router = useRouter();
@@ -43,23 +48,14 @@ export default function Analysis() {
         const siteResponse = await searchSite(address as string);
         const site = siteResponse.data;
         
-        // Get additional data
-        const [zoningResponse, climateResponse, solarResponse, floodResponse] = await Promise.all([
-          getZoningInfo(site.coordinates.lat, site.coordinates.lng),
-          getClimateData(site.coordinates.lat, site.coordinates.lng),
-          getSolarAnalysis(site.coordinates.lat, site.coordinates.lng),
-          getFloodRiskData(site.coordinates.lat, site.coordinates.lng)
-        ]);
+        // Get additional data using the site ID
+        const siteDetailResponse = await getSiteById(site.id);
+        const siteDetail = siteDetailResponse.data;
         
         // Combine all data
         const fullSiteData = {
-          ...site,
-          zoning: zoningResponse.data,
-          environmental: {
-            ...climateResponse.data,
-            solarAnalysis: solarResponse.data,
-            floodRisk: floodResponse.data
-          }
+          ...siteDetail,
+          coordinates: site.coordinates // Ensure we use the coordinates from the search
         };
         
         setSiteData(fullSiteData);
@@ -97,41 +93,51 @@ export default function Analysis() {
         <meta name="description" content={`Site analysis for ${address}`} />
       </Head>
 
-      <Container maxW="container.xl" py={6}>
+      <Container maxW="container.xl" py={8}>
         <Box mb={8}>
-          <Skeleton isLoaded={!isLoading}>
-            <Heading as="h1" size="xl" mb={2}>
-              Site Analysis
-            </Heading>
-            <Flex align="center" mb={4}>
-              <Text fontSize="lg" color="gray.600" mr={3}>
-                {address}
-              </Text>
-              {siteData && (
-                <Badge colorScheme="green" fontSize="0.8em">
-                  Analysis Complete
-                </Badge>
-              )}
-            </Flex>
-          </Skeleton>
+          <Heading as="h1" size="xl" mb={2}>
+            Site Analysis
+          </Heading>
+          <Flex align="center">
+            <Icon as={FaMapMarkerAlt} color="brand.500" mr={2} />
+            <Text fontSize="lg" color="gray.600">
+              {address}
+            </Text>
+          </Flex>
         </Box>
 
         <Grid templateColumns="repeat(12, 1fr)" gap={6}>
           <GridItem colSpan={{ base: 12, md: 8 }}>
-            <Box bg="white" borderRadius="lg" boxShadow="md" height="400px" mb={6}>
-              <Skeleton isLoaded={!isLoading} height="100%">
-                {siteData && <MapView coordinates={siteData.coordinates} />}
-              </Skeleton>
+            <Box bg="white" borderRadius="lg" boxShadow="md" overflow="hidden" mb={6}>
+              <Box height="400px" position="relative">
+                <Skeleton isLoaded={!isLoading} height="100%">
+                  {siteData && (
+                    <MapView coordinates={siteData.coordinates} />
+                  )}
+                </Skeleton>
+              </Box>
             </Box>
 
             <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
               <Skeleton isLoaded={!isLoading}>
-                <Tabs colorScheme="brand" isLazy>
+                <Tabs colorScheme="brand" isLazy variant="enclosed">
                   <TabList>
-                    <Tab>Zoning Analysis</Tab>
-                    <Tab>Environmental</Tab>
-                    <Tab>Feasibility</Tab>
-                    <Tab>Design Inspiration</Tab>
+                    <Tab fontWeight="semibold">
+                      <Icon as={FaBuilding} mr={2} />
+                      Zoning Analysis
+                    </Tab>
+                    <Tab fontWeight="semibold">
+                      <Icon as={FaLeaf} mr={2} />
+                      Environmental
+                    </Tab>
+                    <Tab fontWeight="semibold">
+                      <Icon as={FaChartLine} mr={2} />
+                      Feasibility
+                    </Tab>
+                    <Tab fontWeight="semibold">
+                      <Icon as={FaLightbulb} mr={2} />
+                      Design Inspiration
+                    </Tab>
                   </TabList>
                   <TabPanels>
                     <TabPanel>
@@ -155,48 +161,59 @@ export default function Analysis() {
           <GridItem colSpan={{ base: 12, md: 4 }}>
             <Box bg="white" borderRadius="lg" boxShadow="md" p={6} mb={6}>
               <Skeleton isLoaded={!isLoading}>
-                <Heading as="h3" size="md" mb={4}>
+                <Heading as="h3" size="md" mb={4} display="flex" alignItems="center">
+                  <Icon as={FaInfoCircle} mr={2} color="brand.500" />
                   Site Summary
                 </Heading>
                 {siteData && (
-                  <>
-                    <Text mb={2}>
-                      <strong>Zoning District:</strong> {siteData.zoning.district}
-                    </Text>
-                    <Text mb={2}>
-                      <strong>Max Building Height:</strong> {siteData.zoning.maxHeight}
-                    </Text>
-                    <Text mb={2}>
-                      <strong>Floor Area Ratio (FAR):</strong> {siteData.zoning.far}
-                    </Text>
-                    <Text mb={2}>
-                      <strong>Climate:</strong> {siteData.environmental.climate}
-                    </Text>
-                  </>
+                  <Stack spacing={4}>
+                    <Flex justify="space-between" align="center">
+                      <Text fontWeight="medium">Zoning District:</Text>
+                      <Badge colorScheme="blue" fontSize="0.9em" p={1}>
+                        {siteData.zoning.district}
+                      </Badge>
+                    </Flex>
+                    <Flex justify="space-between" align="center">
+                      <Text fontWeight="medium">Max Building Height:</Text>
+                      <Text>{siteData.zoning.maxHeight}</Text>
+                    </Flex>
+                    <Flex justify="space-between" align="center">
+                      <Text fontWeight="medium">Floor Area Ratio (FAR):</Text>
+                      <Text>{siteData.zoning.far}</Text>
+                    </Flex>
+                    <Flex justify="space-between" align="center">
+                      <Text fontWeight="medium">Climate:</Text>
+                      <Text>{siteData.environmental.climate}</Text>
+                    </Flex>
+                    <Divider />
+                    <Button 
+                      rightIcon={<FaDownload />} 
+                      colorScheme="brand" 
+                      variant="outline" 
+                      size="sm"
+                    >
+                      Download Report
+                    </Button>
+                  </Stack>
                 )}
               </Skeleton>
             </Box>
 
             <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
               <Skeleton isLoaded={!isLoading}>
-                <Heading as="h3" size="md" mb={4}>
+                <Heading as="h3" size="md" mb={4} display="flex" alignItems="center">
+                  <Icon as={FaLightbulb} mr={2} color="brand.500" />
                   Recommendations
                 </Heading>
                 {siteData && (
-                  <>
-                    <Text mb={2}>
-                      • Optimize building orientation for solar gain
-                    </Text>
-                    <Text mb={2}>
-                      • Consider setback requirements for outdoor spaces
-                    </Text>
-                    <Text mb={2}>
-                      • Explore mixed-use development options
-                    </Text>
-                    <Text mb={2}>
-                      • Implement rainwater harvesting systems
-                    </Text>
-                  </>
+                  <Stack spacing={3}>
+                    {siteData.recommendations.map((rec, index) => (
+                      <Flex key={index} align="flex-start">
+                        <Icon as={FaCheckCircle} color="green.500" mt={1} mr={2} />
+                        <Text>{rec}</Text>
+                      </Flex>
+                    ))}
+                  </Stack>
                 )}
               </Skeleton>
             </Box>

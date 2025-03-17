@@ -1,5 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box } from '@chakra-ui/react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+// Set your Mapbox access token
+mapboxgl.accessToken = 'pk.eyJ1IjoibWRhcndpY2hlIiwiYSI6ImNtOGNkeHMwNjFxcDQyanE1c3dzNjM2OTYifQ.M5XYRMVhKgQS8_jXQTncrw';
 
 interface MapViewProps {
   coordinates: {
@@ -10,13 +15,34 @@ interface MapViewProps {
 
 const MapView = ({ coordinates }: MapViewProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<any>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const [zoom, setZoom] = useState(15);
 
   useEffect(() => {
-    // In a real app, we would initialize Mapbox GL here
-    // For now, we'll just display a placeholder
-    console.log('Map would be initialized with coordinates:', coordinates);
-  }, [coordinates]);
+    if (!map.current && mapContainer.current) {
+      // Initialize map
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v11',
+        center: [coordinates.lng, coordinates.lat],
+        zoom: zoom
+      });
+
+      // Add navigation controls
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      
+      // Add marker
+      new mapboxgl.Marker()
+        .setLngLat([coordinates.lng, coordinates.lat])
+        .addTo(map.current);
+    } else if (map.current) {
+      // Update map if coordinates change
+      map.current.flyTo({
+        center: [coordinates.lng, coordinates.lat],
+        zoom: zoom
+      });
+    }
+  }, [coordinates, zoom]);
 
   return (
     <Box
@@ -24,24 +50,8 @@ const MapView = ({ coordinates }: MapViewProps) => {
       height="100%"
       width="100%"
       position="relative"
-      bg="gray.100"
       borderRadius="lg"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-    >
-      <Box textAlign="center" p={4}>
-        <Box as="h3" fontSize="lg" fontWeight="bold" mb={2}>
-          Interactive Map View
-        </Box>
-        <Box>
-          Coordinates: {coordinates.lat.toFixed(4)}, {coordinates.lng.toFixed(4)}
-        </Box>
-        <Box mt={2} fontSize="sm" color="gray.500">
-          (Mapbox integration would be implemented here)
-        </Box>
-      </Box>
-    </Box>
+    />
   );
 };
 

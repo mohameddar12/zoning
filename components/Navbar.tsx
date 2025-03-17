@@ -22,6 +22,7 @@ import {
   ChevronRightIcon,
 } from '@chakra-ui/icons';
 import NextLink from 'next/link';
+import { FaMapMarkedAlt } from 'react-icons/fa';
 
 export default function Navbar() {
   const { isOpen, onToggle } = useDisclosure();
@@ -38,6 +39,7 @@ export default function Navbar() {
         borderStyle={'solid'}
         borderColor={useColorModeValue('gray.200', 'gray.900')}
         align={'center'}
+        boxShadow="sm"
       >
         <Flex
           flex={{ base: 1, md: 'auto' }}
@@ -55,17 +57,18 @@ export default function Navbar() {
         </Flex>
         <Flex flex={{ base: 1 }} justify={{ base: 'center', md: 'start' }}>
           <NextLink href="/" passHref>
-            <Text
-              as="span"
-              textAlign={useBreakpointValue({ base: 'center', md: 'left' })}
-              fontFamily={'heading'}
-              color={useColorModeValue('gray.800', 'white')}
-              fontWeight="bold"
-              fontSize="xl"
-              cursor="pointer"
-            >
-              SiteScout
-            </Text>
+            <Flex align="center" cursor="pointer">
+              <Icon as={FaMapMarkedAlt} w={6} h={6} color="brand.500" mr={2} />
+              <Text
+                textAlign={useBreakpointValue({ base: 'center', md: 'left' })}
+                fontFamily={'heading'}
+                color={useColorModeValue('gray.800', 'white')}
+                fontWeight="bold"
+                fontSize="xl"
+              >
+                SiteScout
+              </Text>
+            </Flex>
           </NextLink>
 
           <Flex display={{ base: 'none', md: 'flex' }} ml={10}>
@@ -89,6 +92,7 @@ export default function Navbar() {
             Sign In
           </Button>
           <Button
+            as={'a'}
             display={{ base: 'none', md: 'inline-flex' }}
             fontSize={'sm'}
             fontWeight={600}
@@ -99,7 +103,7 @@ export default function Navbar() {
               bg: 'brand.400',
             }}
           >
-            Get Started
+            Sign Up
           </Button>
         </Stack>
       </Flex>
@@ -295,6 +299,10 @@ const NAV_ITEMS: Array<NavItem> = [
   {
     label: 'Pricing',
     href: '#',
+  },
+  {
+    label: 'User Guide',
+    href: '/guide',
   },
   {
     label: 'About',

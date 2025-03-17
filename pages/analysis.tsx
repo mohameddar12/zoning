@@ -26,6 +26,7 @@ import MapView from '../components/MapView';
 import ZoningAnalysis from '../components/ZoningAnalysis';
 import EnvironmentalInsights from '../components/EnvironmentalInsights';
 import FeasibilityEstimation from '../components/FeasibilityEstimation';
+import BuildingVisualization from '../components/BuildingVisualization';
 import { searchSite, getZoningInfo, getClimateData, getSolarAnalysis, getFloodRiskData, getSiteById } from '../services/api';
 import { FaMapMarkerAlt, FaBuilding, FaLeaf, FaChartLine, FaInfoCircle, FaDownload, FaCheckCircle, FaLightbulb } from 'react-icons/fa';
 import { Icon } from '@chakra-ui/react';
@@ -148,6 +149,9 @@ export default function Analysis() {
                   <TabPanels>
                     <TabPanel>
                       {siteData && <ZoningAnalysis data={siteData.zoning} />}
+                      <Box mt={8}>
+                        <BuildingVisualization zoning={siteData?.zoning} />
+                      </Box>
                     </TabPanel>
                     <TabPanel>
                       {siteData && <EnvironmentalInsights data={siteData.environmental} />}

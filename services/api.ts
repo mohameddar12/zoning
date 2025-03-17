@@ -1,4 +1,5 @@
 import axios from 'axios';
+import zoningService from './zoningService';
 
 // Add type declaration for window.originalAddress
 declare global {
@@ -98,6 +99,22 @@ export const getSiteById = async (siteId: string) => {
         await getCoordinatesForAddress(originalAddress) : 
         { lat: 40.7128, lng: -74.0060 }; // Default to New York if no address
       
+      // Get real zoning data from Regrid
+      let zoningData = await zoningService.getZoningData(lat, lng);
+      
+      // Fallback to mock zoning data if real data isn't available
+      if (!zoningData) {
+        zoningData = {
+          district: ['R6', 'C2', 'M1', 'B3', 'D4'][addressSeed % 5],
+          description: 'Zoning district description',
+          maxHeight: `${100 + (addressSeed % 100)} ft`,
+          far: (2 + (addressSeed % 10) / 10),
+          setbacks: { front: '10 ft', side: '5 ft', rear: '30 ft' },
+          allowedUses: ['Residential', 'Commercial', 'Mixed-Use', 'Community Facility'][addressSeed % 4],
+          source: 'Mock Data'
+        };
+      }
+      
       // Determine state name based on the address (simplified)
       let stateName = "New York";
       if (originalAddress.toLowerCase().includes('mi') || 
@@ -118,13 +135,7 @@ export const getSiteById = async (siteId: string) => {
             lat: lat,
             lng: lng
           },
-          zoning: {
-            district: ['R6', 'C2', 'M1', 'B3', 'D4'][addressSeed % 5],
-            maxHeight: `${100 + (addressSeed % 100)} ft`,
-            far: (2 + (addressSeed % 10) / 10).toFixed(1),
-            setbacks: { front: '10 ft', side: '5 ft', rear: '30 ft' },
-            allowedUses: ['Residential', 'Commercial', 'Mixed-Use', 'Community Facility'][addressSeed % 4],
-          },
+          zoning: zoningData,
           environmental: {
             climate: ['Humid subtropical', 'Mediterranean', 'Continental', 'Arid'][addressSeed % 4],
             annualSunHours: 2000 + (addressSeed % 1000),

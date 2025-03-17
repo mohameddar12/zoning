@@ -40,6 +40,8 @@ export default function Analysis() {
   useEffect(() => {
     if (!address) return;
 
+    console.log('URL address:', address);
+
     const fetchSiteData = async () => {
       try {
         setIsLoading(true);
@@ -47,16 +49,20 @@ export default function Analysis() {
         // Search for the site
         const siteResponse = await searchSite(address as string);
         const site = siteResponse.data;
+        console.log('Site from search:', site);
         
         // Get additional data using the site ID
         const siteDetailResponse = await getSiteById(site.id);
         const siteDetail = siteDetailResponse.data;
+        console.log('Site detail:', siteDetail);
         
-        // Combine all data
+        // Create a new object with the original address explicitly set
         const fullSiteData = {
           ...siteDetail,
-          coordinates: site.coordinates // Ensure we use the coordinates from the search
+          address: address as string, // Force use of the URL query address
+          coordinates: site.coordinates
         };
+        console.log('Full site data:', fullSiteData);
         
         setSiteData(fullSiteData);
       } catch (error) {
@@ -101,7 +107,7 @@ export default function Analysis() {
           <Flex align="center">
             <Icon as={FaMapMarkerAlt} color="brand.500" mr={2} />
             <Text fontSize="lg" color="gray.600">
-              {address}
+              {typeof address === 'string' ? address : 'No address provided'}
             </Text>
           </Flex>
         </Box>

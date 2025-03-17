@@ -34,117 +34,115 @@ interface ZoningData {
 }
 
 interface ZoningAnalysisProps {
-  data: ZoningData;
+  data: {
+    district: string;
+    description?: string;
+    maxHeight: string;
+    far: number | string;
+    setbacks: {
+      front: string;
+      side: string;
+      rear: string;
+    };
+    allowedUses: string | string[];
+    parkingRequirements?: string;
+  };
 }
 
 const ZoningAnalysis = ({ data }: ZoningAnalysisProps) => {
+  // Ensure allowedUses is always an array
+  const allowedUses = Array.isArray(data.allowedUses) 
+    ? data.allowedUses 
+    : [data.allowedUses];
+
   return (
     <Box>
       <Heading as="h3" size="md" mb={4}>
-        Zoning Analysis
+        Zoning District: {data.district}
       </Heading>
       
-      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={6}>
-        <Stat>
-          <StatLabel>Zoning District</StatLabel>
-          <StatNumber>{data.district}</StatNumber>
-          <StatHelpText>Residential Medium Density</StatHelpText>
-        </Stat>
+      {data.description && (
+        <Text mb={4}>{data.description}</Text>
+      )}
+      
+      <Divider my={4} />
+      
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
+        <Box>
+          <Heading as="h4" size="sm" mb={3}>
+            Building Envelope
+          </Heading>
+          <Box pl={4}>
+            <Text mb={2}>
+              <Text as="span" fontWeight="bold">Maximum Height:</Text> {data.maxHeight}
+            </Text>
+            <Text mb={2}>
+              <Text as="span" fontWeight="bold">Floor Area Ratio (FAR):</Text> {data.far}
+            </Text>
+            <Text fontWeight="bold" mb={1}>Setbacks:</Text>
+            <Box pl={4}>
+              <Text mb={1}>Front: {data.setbacks.front}</Text>
+              <Text mb={1}>Side: {data.setbacks.side}</Text>
+              <Text mb={1}>Rear: {data.setbacks.rear}</Text>
+            </Box>
+          </Box>
+        </Box>
         
-        <Stat>
-          <StatLabel>Maximum Height</StatLabel>
-          <StatNumber>{data.maxHeight}</StatNumber>
-          <StatHelpText>From street level</StatHelpText>
-        </Stat>
-        
-        <Stat>
-          <StatLabel>Floor Area Ratio (FAR)</StatLabel>
-          <StatNumber>{data.far}</StatNumber>
-          <StatHelpText>Maximum buildable area</StatHelpText>
-        </Stat>
+        <Box>
+          <Heading as="h4" size="sm" mb={3}>
+            Allowed Uses
+          </Heading>
+          <List spacing={2}>
+            {allowedUses.map((use, index) => (
+              <ListItem key={index}>
+                <ListIcon as={CheckCircleIcon} color="green.500" />
+                {use}
+              </ListItem>
+            ))}
+          </List>
+          
+          {data.parkingRequirements && (
+            <Box mt={4}>
+              <Text fontWeight="bold" mb={1}>Parking Requirements:</Text>
+              <Text>{data.parkingRequirements}</Text>
+            </Box>
+          )}
+        </Box>
       </SimpleGrid>
       
-      <Divider my={6} />
-      
-      <Box mb={6}>
-        <Heading as="h4" size="sm" mb={3}>
-          Required Setbacks
-        </Heading>
-        <Table variant="simple" size="sm">
-          <Thead>
-            <Tr>
-              <Th>Location</Th>
-              <Th>Requirement</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            <Tr>
-              <Td>Front</Td>
-              <Td>{data.setbacks.front}</Td>
-            </Tr>
-            <Tr>
-              <Td>Side</Td>
-              <Td>{data.setbacks.side}</Td>
-            </Tr>
-            <Tr>
-              <Td>Rear</Td>
-              <Td>{data.setbacks.rear}</Td>
-            </Tr>
-          </Tbody>
-        </Table>
-      </Box>
+      <Divider my={4} />
       
       <Box>
         <Heading as="h4" size="sm" mb={3}>
-          Allowed Uses
-        </Heading>
-        <List spacing={2}>
-          {data.allowedUses.map((use, index) => (
-            <ListItem key={index}>
-              <ListIcon as={CheckCircleIcon} color="green.500" />
-              {use}
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-      
-      <Divider my={6} />
-      
-      <Box>
-        <Heading as="h4" size="sm" mb={3}>
-          Zoning Compliance Analysis
+          Compliance Analysis
         </Heading>
         <Text mb={4}>
-          Based on the zoning regulations for this site, here are the key compliance considerations:
+          Based on the zoning regulations for {data.district}, your site has the following development potential:
         </Text>
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-          <Box p={3} borderWidth="1px" borderRadius="md">
-            <Badge colorScheme="green" mb={2}>Compliant</Badge>
-            <Text fontWeight="medium">Building Height</Text>
-            <Text fontSize="sm">
-              The proposed building height of 110 ft is within the maximum allowed height of {data.maxHeight}.
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+          <Box p={4} borderWidth="1px" borderRadius="md">
+            <Heading as="h5" size="xs" mb={2}>
+              Maximum Building Height
+            </Heading>
+            <Text fontSize="xl" fontWeight="bold" color="brand.500">
+              {data.maxHeight}
             </Text>
           </Box>
-          <Box p={3} borderWidth="1px" borderRadius="md">
-            <Badge colorScheme="green" mb={2}>Compliant</Badge>
-            <Text fontWeight="medium">Floor Area Ratio</Text>
-            <Text fontSize="sm">
-              The proposed FAR of 2.8 is within the maximum allowed FAR of {data.far}.
+          <Box p={4} borderWidth="1px" borderRadius="md">
+            <Heading as="h5" size="xs" mb={2}>
+              Maximum Floor Area
+            </Heading>
+            <Text fontSize="xl" fontWeight="bold" color="brand.500">
+              {typeof data.far === 'number' ? `${data.far.toFixed(1)}x lot area` : data.far}
             </Text>
           </Box>
-          <Box p={3} borderWidth="1px" borderRadius="md">
-            <Badge colorScheme="yellow" mb={2}>Review Needed</Badge>
-            <Text fontWeight="medium">Parking Requirements</Text>
-            <Text fontSize="sm">
-              Minimum parking requirements may apply based on the number of residential units.
-            </Text>
-          </Box>
-          <Box p={3} borderWidth="1px" borderRadius="md">
-            <Badge colorScheme="green" mb={2}>Compliant</Badge>
-            <Text fontWeight="medium">Setbacks</Text>
-            <Text fontSize="sm">
-              The proposed building setbacks comply with the minimum requirements.
-            </Text>
+          <Box p={4} borderWidth="1px" borderRadius="md">
+            <Heading as="h5" size="xs" mb={2}>
+              Primary Use Category
+            </Heading>
+            <Badge colorScheme="green" fontSize="md" p={1}>
+              {Array.isArray(allowedUses) && allowedUses.length > 0 ? allowedUses[0] : 'N/A'}
+            </Badge>
           </Box>
         </SimpleGrid>
       </Box>

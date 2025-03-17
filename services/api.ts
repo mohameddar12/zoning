@@ -1,6 +1,14 @@
 import axios from 'axios';
 
+// Add type declaration for window.originalAddress
+declare global {
+  interface Window {
+    originalAddress?: string;
+  }
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || 'pk.eyJ1IjoibWRhcndpY2hlIiwiYSI6ImNtOGNkeHMwNjFxcDQyanE1c3dzNjM2OTYifQ.M5XYRMVhKgQS8_jXQTncrw';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -12,43 +20,63 @@ const api = axios.create({
 // Mock data for development
 const useMockData = true; // Set to false when backend is working
 
+// Function to get coordinates for an address using Mapbox Geocoding API
+const getCoordinatesForAddress = async (address: string): Promise<{ lat: number, lng: number }> => {
+  try {
+    // URL encode the address
+    const encodedAddress = encodeURIComponent(address);
+    
+    // Make request to Mapbox Geocoding API
+    const response = await axios.get(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${MAPBOX_TOKEN}&limit=1`
+    );
+    
+    // Check if we got results
+    if (response.data.features && response.data.features.length > 0) {
+      // Mapbox returns coordinates as [longitude, latitude]
+      const [lng, lat] = response.data.features[0].center;
+      return { lat, lng };
+    }
+    
+    // Return default coordinates if no results
+    console.warn('No geocoding results found for address:', address);
+    return { lat: 40.7128, lng: -74.0060 }; // Default to New York
+  } catch (error) {
+    console.error('Error geocoding address:', error);
+    return { lat: 40.7128, lng: -74.0060 }; // Default to New York on error
+  }
+};
+
 // Site API
 export const searchSite = async (query: string) => {
   if (useMockData) {
-    // Generate pseudo-random coordinates based on the input address
-    // This is just for demo purposes - in a real app, we would geocode the address
-    const addressSeed = query.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const latVariation = (addressSeed % 100) * 0.01;
-    const lngVariation = ((addressSeed * 2) % 100) * 0.01;
-    
-    // Base coordinates (different cities based on first letter)
-    let baseLat = 40.7128; // New York
-    let baseLng = -74.0060;
-    
-    const firstChar = query.charAt(0).toLowerCase();
-    if (firstChar >= 'a' && firstChar <= 'h') {
-      baseLat = 34.0522; // Los Angeles
-      baseLng = -118.2437;
-    } else if (firstChar >= 'i' && firstChar <= 'p') {
-      baseLat = 41.8781; // Chicago
-      baseLng = -87.6298;
-    } else if (firstChar >= 'q' && firstChar <= 'z') {
-      baseLat = 29.7604; // Houston
-      baseLng = -95.3698;
+    try {
+      // Get coordinates for the address using real geocoding
+      const { lat, lng } = await getCoordinatesForAddress(query);
+      
+      // Generate a unique ID based on the address
+      const addressSeed = query.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      
+      // Store the original query in a global variable
+      window.originalAddress = query;
+      
+      // Return mock data with real coordinates
+      return {
+        data: {
+          id: 'mock-site-id-' + addressSeed,
+          address: query,
+          originalAddress: query,
+          coordinates: {
+            lat: lat,
+            lng: lng
+          },
+          createdAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('Error in searchSite:', error);
+      throw error;
     }
-    
-    // Return mock data with varied coordinates
-    return {
-      data: {
-        id: 'mock-site-id-' + addressSeed,
-        address: query,
-        coordinates: {
-          lat: baseLat + latVariation,
-          lng: baseLng + lngVariation
-        },
-        createdAt: new Date().toISOString()
-      }
-    };
   }
   
   const response = await api.get(`/sites/search?address=${encodeURIComponent(query)}`);
@@ -57,67 +85,69 @@ export const searchSite = async (query: string) => {
 
 export const getSiteById = async (siteId: string) => {
   if (useMockData) {
-    // Extract the address seed from the site ID
-    const addressSeedStr = siteId.replace('mock-site-id-', '');
-    const addressSeed = parseInt(addressSeedStr) || 0;
-    
-    // Generate the same coordinates as in searchSite
-    const latVariation = (addressSeed % 100) * 0.01;
-    const lngVariation = ((addressSeed * 2) % 100) * 0.01;
-    
-    // Determine which base coordinates to use based on the seed
-    let baseLat = 40.7128; // New York
-    let baseLng = -74.0060;
-    let cityName = "New York";
-    
-    if (addressSeed % 4 === 1) {
-      baseLat = 34.0522; // Los Angeles
-      baseLng = -118.2437;
-      cityName = "Los Angeles";
-    } else if (addressSeed % 4 === 2) {
-      baseLat = 41.8781; // Chicago
-      baseLng = -87.6298;
-      cityName = "Chicago";
-    } else if (addressSeed % 4 === 3) {
-      baseLat = 29.7604; // Houston
-      baseLng = -95.3698;
-      cityName = "Houston";
-    }
-    
-    return {
-      data: {
-        id: siteId,
-        address: `${123 + (addressSeed % 900)} ${['Main', 'Oak', 'Maple', 'Washington', 'Broadway'][addressSeed % 5]} St, ${cityName}`,
-        coordinates: {
-          lat: baseLat + latVariation,
-          lng: baseLng + lngVariation
-        },
-        zoning: {
-          district: ['R6', 'C2', 'M1', 'B3', 'D4'][addressSeed % 5],
-          maxHeight: `${100 + (addressSeed % 100)} ft`,
-          far: (2 + (addressSeed % 10) / 10).toFixed(1),
-          setbacks: { front: '10 ft', side: '5 ft', rear: '30 ft' },
-          allowedUses: ['Residential', 'Commercial', 'Mixed-Use', 'Community Facility'][addressSeed % 4],
-        },
-        environmental: {
-          climate: ['Humid subtropical', 'Mediterranean', 'Continental', 'Arid'][addressSeed % 4],
-          annualSunHours: 2000 + (addressSeed % 1000),
-          prevailingWinds: ['SW', 'NE', 'NW', 'SE'][addressSeed % 4],
-          floodZone: ['Zone X', 'Zone A', 'Zone B', 'Zone C'][addressSeed % 4],
-          soilType: ['Sandy loam', 'Clay', 'Silt', 'Loam'][addressSeed % 4],
-        },
-        recommendations: [
-          'Optimize building orientation for solar gain',
-          'Consider setback requirements for outdoor spaces',
-          'Explore mixed-use development options',
-          'Implement rainwater harvesting systems',
-          'Utilize passive cooling strategies',
-          'Incorporate green roof systems',
-          'Design for natural ventilation',
-          'Consider geothermal heating/cooling'
-        ].slice(0, 4 + (addressSeed % 4))
+    try {
+      // Try to get the original address from the global variable
+      const originalAddress = window.originalAddress || '';
+      
+      // Extract the address seed from the site ID
+      const addressSeedStr = siteId.replace('mock-site-id-', '');
+      const addressSeed = parseInt(addressSeedStr) || 0;
+      
+      // Get coordinates for the address using real geocoding
+      const { lat, lng } = originalAddress ? 
+        await getCoordinatesForAddress(originalAddress) : 
+        { lat: 40.7128, lng: -74.0060 }; // Default to New York if no address
+      
+      // Determine state name based on the address (simplified)
+      let stateName = "New York";
+      if (originalAddress.toLowerCase().includes('mi') || 
+          originalAddress.toLowerCase().includes('michigan')) {
+        stateName = "Michigan";
+      } else if (originalAddress.toLowerCase().includes('ca') || 
+                originalAddress.toLowerCase().includes('california')) {
+        stateName = "California";
       }
-    };
+      // Add more state detection as needed
+      
+      return {
+        data: {
+          id: siteId,
+          address: originalAddress || `${123 + (addressSeed % 900)} ${['Main', 'Oak', 'Maple', 'Washington', 'Broadway'][addressSeed % 5]} St, ${stateName}`,
+          originalAddress: originalAddress,
+          coordinates: {
+            lat: lat,
+            lng: lng
+          },
+          zoning: {
+            district: ['R6', 'C2', 'M1', 'B3', 'D4'][addressSeed % 5],
+            maxHeight: `${100 + (addressSeed % 100)} ft`,
+            far: (2 + (addressSeed % 10) / 10).toFixed(1),
+            setbacks: { front: '10 ft', side: '5 ft', rear: '30 ft' },
+            allowedUses: ['Residential', 'Commercial', 'Mixed-Use', 'Community Facility'][addressSeed % 4],
+          },
+          environmental: {
+            climate: ['Humid subtropical', 'Mediterranean', 'Continental', 'Arid'][addressSeed % 4],
+            annualSunHours: 2000 + (addressSeed % 1000),
+            prevailingWinds: ['SW', 'NE', 'NW', 'SE'][addressSeed % 4],
+            floodZone: ['Zone X', 'Zone A', 'Zone B', 'Zone C'][addressSeed % 4],
+            soilType: ['Sandy loam', 'Clay', 'Silt', 'Loam'][addressSeed % 4],
+          },
+          recommendations: [
+            'Optimize building orientation for solar gain',
+            'Consider setback requirements for outdoor spaces',
+            'Explore mixed-use development options',
+            'Implement rainwater harvesting systems',
+            'Utilize passive cooling strategies',
+            'Incorporate green roof systems',
+            'Design for natural ventilation',
+            'Consider geothermal heating/cooling'
+          ].slice(0, 4 + (addressSeed % 4))
+        }
+      };
+    } catch (error) {
+      console.error('Error in getSiteById:', error);
+      throw error;
+    }
   }
   
   const response = await api.get(`/sites/${siteId}`);

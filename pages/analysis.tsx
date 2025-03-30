@@ -154,7 +154,10 @@ export default function Analysis() {
                       </Box>
                     </TabPanel>
                     <TabPanel>
-                      {siteData && <EnvironmentalInsights data={siteData.environmental} />}
+                      {siteData && <EnvironmentalInsights 
+                        data={siteData.environmental} 
+                        coordinates={siteData.coordinates} 
+                      />}
                     </TabPanel>
                     <TabPanel>
                       {siteData && <FeasibilityEstimation />}

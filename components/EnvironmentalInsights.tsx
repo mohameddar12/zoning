@@ -20,6 +20,7 @@ import {
   WarningIcon,
 } from '@chakra-ui/icons';
 import { FaWind, FaWater, FaSeedling } from 'react-icons/fa';
+import SurfaceAnalysis from './SurfaceAnalysis';
 
 interface EnvironmentalData {
   climate: string;
@@ -31,9 +32,13 @@ interface EnvironmentalData {
 
 interface EnvironmentalInsightsProps {
   data: EnvironmentalData;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
 }
 
-const EnvironmentalInsights = ({ data }: EnvironmentalInsightsProps) => {
+const EnvironmentalInsights = ({ data, coordinates }: EnvironmentalInsightsProps) => {
   return (
     <Box>
       <Heading as="h3" size="md" mb={4}>
@@ -149,6 +154,14 @@ const EnvironmentalInsights = ({ data }: EnvironmentalInsightsProps) => {
             </Box>
           </Flex>
         </Box>
+      </Box>
+      
+      <Box mb={6}>
+        <SurfaceAnalysis 
+          lat={coordinates.lat} 
+          lng={coordinates.lng} 
+          radius={100}
+        />
       </Box>
     </Box>
   );

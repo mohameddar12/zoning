@@ -1,21 +1,23 @@
 import axios from 'axios';
+import countyGisService from './countyGisService';
+import regridService from './regridService';
+import CacheService from './cacheService';
 
 // Types for zoning data
 export interface ZoningData {
   district: string;
-  description: string;
+  description?: string;
   maxHeight: string;
-  far: number | string;
+  far: number;
   setbacks: {
     front: string;
     side: string;
     rear: string;
   };
-  allowedUses: string[];
+  allowedUses: string | string[];
   parkingRequirements?: string;
+  source?: string;
   overlays?: string[];
-  specialDistricts?: string[];
-  source: string;
 }
 
 // Michigan-focused mock zoning provider
@@ -235,7 +237,6 @@ export class MichiganZoningProvider {
           },
           allowedUses: ['Retail', 'Office', 'Restaurant', 'Service', 'Automotive'],
           parkingRequirements: '1 space per 250 sq ft',
-          overlays: ['Corridor Improvement'],
           source: 'Dearborn Heights Zoning Ordinance (Mock)'
         };
       }
@@ -298,17 +299,17 @@ export class MichiganZoningProvider {
     // Commercial corridor along Ford Road
     if (lng >= -83.3 && lng <= -83.25 && lat >= 42.315 && lat <= 42.325) {
       return {
-        district: 'C-1',
+        district: 'B-1',
         description: 'Local Business District',
         maxHeight: '35 ft',
         far: 1.0,
         setbacks: {
-          front: '15 ft',
-          side: '10 ft',
-          rear: '20 ft'
+          front: '25 ft',
+          side: '0 ft',
+          rear: '10 ft'
         },
-        allowedUses: ['Retail', 'Office', 'Personal Service', 'Restaurant'],
-        parkingRequirements: '1 space per 200 sq ft',
+        allowedUses: ['Retail', 'Office', 'Restaurant', 'Service', 'Automotive'],
+        parkingRequirements: '1 space per 250 sq ft',
         source: 'Dearborn Heights Zoning Ordinance (Mock)'
       };
     }
@@ -533,6 +534,33 @@ export class MichiganZoningProvider {
       source: 'Michigan Zoning (Mock)'
     };
   }
+
+  getZoningDataForCity(city: string, district: string): ZoningData | null {
+    // For Dearborn Heights
+    if (city === 'Dearborn Heights') {
+      // R-1 Single Family Residential
+      if (district === 'R-1') {
+        return {
+          district: 'R-1',
+          description: 'Single-Family Residential District',
+          maxHeight: '35 ft',
+          far: 0.5,
+          setbacks: {
+            front: '25 ft', // More accurate for Dearborn Heights
+            side: '5 ft',   // More accurate
+            rear: '35 ft'   // More accurate
+          },
+          allowedUses: ['Single-Family Residential'],
+          parkingRequirements: '2 spaces per dwelling unit',
+          source: 'Michigan Zoning (Dearborn Heights)'
+        };
+      }
+      
+      // Add more specific districts with accurate setbacks
+    }
+    
+    // Similar improvements for other cities...
+  }
 }
 
 // Generic mock provider for non-Michigan locations
@@ -580,25 +608,60 @@ export class GenericZoningProvider {
 export class ZoningService {
   private michiganProvider: MichiganZoningProvider;
   private genericProvider: GenericZoningProvider;
+  private cache: CacheService<ZoningData>;
   
   constructor() {
     this.michiganProvider = new MichiganZoningProvider();
     this.genericProvider = new GenericZoningProvider();
+    this.cache = new CacheService<ZoningData>(1440); // Cache for 24 hours
   }
   
   async getZoningData(lat: number, lng: number): Promise<ZoningData> {
     try {
-      // Try Michigan provider first
+      // Round coordinates to reduce cache variations (5 decimal places is ~1m precision)
+      const roundedLat = Math.round(lat * 100000) / 100000;
+      const roundedLng = Math.round(lng * 100000) / 100000;
+      const cacheKey = `${roundedLat},${roundedLng}`;
+      
+      // Check cache first
+      const cachedData = this.cache.get(cacheKey);
+      if (cachedData) {
+        console.log('Using cached zoning data');
+        return cachedData;
+      }
+      
+      // First try to get data from Regrid API
+      const regridData = await regridService.getZoningData(lat, lng);
+      
+      if (regridData) {
+        console.log('Got Regrid zoning data');
+        this.cache.set(cacheKey, regridData);
+        return regridData;
+      }
+      
+      // Next try to get data from county GIS services
+      const countyData = await countyGisService.getZoningData(lat, lng);
+      
+      if (countyData) {
+        console.log('Got county GIS zoning data');
+        this.cache.set(cacheKey, countyData);
+        return countyData;
+      }
+      
+      // Try Michigan provider next
       const michiganData = await this.michiganProvider.getZoningData(lat, lng);
       
       if (michiganData) {
         console.log('Got Michigan zoning data');
+        this.cache.set(cacheKey, michiganData);
         return michiganData;
       }
       
       // Fall back to generic provider
       console.log('Using generic zoning data');
-      return await this.genericProvider.getZoningData(lat, lng);
+      const genericData = await this.genericProvider.getZoningData(lat, lng);
+      this.cache.set(cacheKey, genericData);
+      return genericData;
     } catch (error) {
       console.error('Error in ZoningService:', error);
       // Return generic data as fallback

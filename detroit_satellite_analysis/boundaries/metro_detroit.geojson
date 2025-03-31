@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Metro Detroit"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -83.7466,
+              42.1268
+            ],
+            [
+              -82.8466,
+              42.1268
+            ],
+            [
+              -82.8466,
+              42.7268
+            ],
+            [
+              -83.7466,
+              42.7268
+            ],
+            [
+              -83.7466,
+              42.1268
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

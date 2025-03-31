@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Detroit City"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -83.2879,
+              42.2555
+            ],
+            [
+              -82.9103,
+              42.2555
+            ],
+            [
+              -82.9103,
+              42.4501
+            ],
+            [
+              -83.2879,
+              42.4501
+            ],
+            [
+              -83.2879,
+              42.2555
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

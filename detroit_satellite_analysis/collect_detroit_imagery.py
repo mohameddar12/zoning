@@ -2,37 +2,85 @@ import ee
 import geojson
 import os
 import time
+import json
 
-# Initialize Earth Engine with Python authentication
-# Replace the ee.Initialize() line with:
+# Initialize Earth Engine with your project ID
 try:
-    ee.Initialize()
-except Exception:
-    # If authentication fails, use the Python authentication method
+    ee.Initialize(project='ee-mohameddarwiche12')
+except Exception as e:
+    print(f"Authentication error: {e}")
     ee.Authenticate()
-    ee.Initialize()
+    ee.Initialize(project='ee-mohameddarwiche12')
 
-# Rest of your script remains the same
 def load_detroit_boundaries():
     regions = []
     boundaries_dir = "boundaries"
     
-    for filename in os.listdir(boundaries_dir):
-        if filename.endswith(".geojson"):
-            region_name = filename.split(".")[0]
-            with open(os.path.join(boundaries_dir, filename)) as f:
-                geojson_data = geojson.load(f)
+    # Check if boundaries directory exists
+    if not os.path.exists(boundaries_dir):
+        print(f"Error: '{boundaries_dir}' directory not found. Creating it...")
+        os.makedirs(boundaries_dir)
+        print(f"Please ensure your GeoJSON files are in the '{boundaries_dir}' directory.")
+        return []
+    
+    # Check if any geojson files exist
+    geojson_files = [f for f in os.listdir(boundaries_dir) if f.endswith('.geojson')]
+    if not geojson_files:
+        print(f"Error: No GeoJSON files found in '{boundaries_dir}' directory.")
+        return []
+    
+    for filename in geojson_files:
+        region_name = filename.split(".")[0]
+        file_path = os.path.join(boundaries_dir, filename)
+        
+        try:
+            # Use standard json library instead of geojson
+            with open(file_path, 'r') as f:
+                data = json.load(f)
                 
-                # Convert GeoJSON to Earth Engine geometry
-                coords = geojson_data['features'][0]['geometry']['coordinates'][0]
-                ee_geometry = ee.Geometry.Polygon(coords)
-                
-                regions.append({
-                    'name': region_name,
-                    'coords': ee_geometry
-                })
+            # Convert GeoJSON to Earth Engine geometry
+            coords = data['features'][0]['geometry']['coordinates'][0]
+            ee_geometry = ee.Geometry.Polygon(coords)
+            
+            regions.append({
+                'name': region_name,
+                'coords': ee_geometry
+            })
+            print(f"Successfully loaded region: {region_name}")
+        except Exception as e:
+            print(f"Error loading {filename}: {str(e)}")
     
     return regions
+
+# Create geometries directly as fallback
+def create_detroit_geometries_directly():
+    # Define Detroit city boundary directly
+    detroit_coords = [
+        [-83.2879, 42.2555],
+        [-82.9103, 42.2555],
+        [-82.9103, 42.4501],
+        [-83.2879, 42.4501],
+        [-83.2879, 42.2555]
+    ]
+    
+    # Define Metro Detroit boundary directly
+    metro_detroit_coords = [
+        [-83.7466, 42.1268],
+        [-82.8466, 42.1268],
+        [-82.8466, 42.7268],
+        [-83.7466, 42.7268],
+        [-83.7466, 42.1268]
+    ]
+    
+    # Create Earth Engine geometries
+    detroit_geometry = ee.Geometry.Polygon([detroit_coords])
+    metro_detroit_geometry = ee.Geometry.Polygon([metro_detroit_coords])
+    
+    # Return as regions list
+    return [
+        {'name': 'detroit', 'coords': detroit_geometry},
+        {'name': 'metro_detroit', 'coords': metro_detroit_geometry}
+    ]
 
 # Cloud masking function for Sentinel-2
 def maskS2clouds(image):
@@ -46,8 +94,8 @@ def maskS2clouds(image):
 
 # Function to get Sentinel-2 imagery with enhanced filtering
 def get_sentinel_imagery(region, start_date, end_date):
-    # Get all images in date range
-    s2_collection = ee.ImageCollection('COPERNICUS/S2_SR') \
+    # Get all images in date range - using the HARMONIZED collection
+    s2_collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
         .filterDate(start_date, end_date) \
         .filterBounds(region['coords'])
     
@@ -68,11 +116,16 @@ def get_sentinel_imagery(region, start_date, end_date):
         composite = s2_filtered.sort('CLOUDY_PIXEL_PERCENTAGE').first() \
             .select(['B2', 'B3', 'B4', 'B8'])
     
+    # Cast all bands to Float32 to ensure consistent data types
+    composite = composite.toFloat()
+    
     return composite
 
 # Function to calculate NDVI (vegetation index)
 def addNDVI(image):
     ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI')
+    # Ensure NDVI is also Float32
+    ndvi = ndvi.toFloat()
     return image.addBands(ndvi)
 
 # Main export function for Detroit
@@ -123,6 +176,12 @@ def export_detroit_imagery(regions):
 # Run the collection process
 print("Loading Detroit region boundaries...")
 regions = load_detroit_boundaries()
+
+# If loading from files fails, create geometries directly
+if not regions:
+    print("Falling back to direct geometry creation...")
+    regions = create_detroit_geometries_directly()
+
 print(f"Found {len(regions)} regions: {[r['name'] for r in regions]}")
 
 print("Starting imagery export...")
